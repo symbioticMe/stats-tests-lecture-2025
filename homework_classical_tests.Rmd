@@ -1,0 +1,87 @@
+---
+title: "Hypothesis testing. Classical statistical tests"
+author: "Jelena Čuklina & Mariia Chernigovsaya"
+date: "October 2025"
+output:
+  html_document: default
+---
+# Setup
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r load-packages}
+library(dplyr)      
+library(ggplot2)
+```
+
+```{r load-data}
+# Load the NHANES dataset
+```
+
+Prepare a clean dataset for analysis
+```{r prepare-data}
+# Focus on key variables for the exercise
+nhanes_clean <- NHANES %>%
+  select(Gender, Age, BMI, Diabetes, BPSysAve, BPDiaAve) %>%
+  # Remove rows with any missing data for simplicity in these exercises
+  na.omit() %>%
+  # Filter for Age >= 18 for adult studies
+  filter(Age >= 18)
+
+# Check the structure of the data for students
+# str(nhanes_clean)
+```
+
+
+# Tests for continuous data
+## Parametric tests
+
+### z-test
+
+The scenario:Known Population Mean ($\mu_0$): Based on historical data, the mean BMI for adults in the U.S. is $\mathbf{28.5}$.Study Question: Does the mean BMI of a specific subsample (older adults, age $\ge 60$) significantly differ from the general historical population mean of $28.5$?
+
+```{r}
+# Example of one-sample z-test
+# Define the null hypothesis mean (mu_0)
+mu_0_sys <- 120
+
+# Perform the one-sample t-test
+t_result_one_sample <- t.test(nhanes_clean$BPSysAve, mu = mu_0_sys)
+
+cat("\n--- Results for One-Sample t-test (BPSysAve vs. 120) ---\n")
+print(t_result_one_sample)
+
+# Question for Clinicians:
+# How does the p-value and the 95% Confidence Interval inform you about
+# the general SBP status of this population relative to the 120 threshold?
+```
+
+### t-test
+
+We will cover three types of t-tests:
+  * one-sample t-test
+  * independent two-sample t-test
+  * paired t-test
+
+## Non-parametric tests
+### Wilcoxon signed-rank test
+### Mann-Whitney U test (Wilcoxon rank-sum test)
+
+## Other tests for continuous data (to be covered in later lectures):
+- ANOVA
+- ANCOVA (TBC)
+- Correlation (Pearson, Spearman)
+- Linear regression
+
+# Tests for categorical data
+## Parametric tests
+### Chi-squared test for goodness of fit
+### Chi-squared test for independence
+### Fisher's exact test
+
+## Non-parametric tests
+### McNemar's test
+### Cochran's Q test
