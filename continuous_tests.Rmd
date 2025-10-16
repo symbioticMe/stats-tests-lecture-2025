@@ -1,0 +1,263 @@
+---
+title: "Statistical Tests for Continuous Outcomes"
+author: "Stats Tests Lecture 2025"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+```
+
+# Statistical Tests for Continuous Outcomes
+
+This document covers statistical tests for continuous outcomes, including parametric and non-parametric tests for comparing means.
+
+## 1. Independent Samples t-Test
+
+The independent samples t-test compares the means of two independent groups.
+
+**Assumptions:**
+- Independence of observations
+- Normal distribution in each group
+- Homogeneity of variance (equal variances)
+
+**Example:**
+```{r independent-t-test}
+# Generate sample data: heights of males vs females
+set.seed(123)
+male_heights <- rnorm(30, mean = 175, sd = 10)
+female_heights <- rnorm(30, mean = 165, sd = 10)
+
+# Combine into a data frame
+height_data <- data.frame(
+  height = c(male_heights, female_heights),
+  gender = factor(rep(c("Male", "Female"), each = 30))
+)
+
+# Visualize the data
+ggplot(height_data, aes(x = gender, y = height, fill = gender)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Height Distribution by Gender",
+       x = "Gender", y = "Height (cm)")
+
+# Perform independent samples t-test
+t_test_result <- t.test(height ~ gender, data = height_data, var.equal = TRUE)
+print(t_test_result)
+
+# Interpretation
+cat("\nInterpretation:\n")
+cat("The p-value is:", format(t_test_result$p.value, scientific = FALSE), "\n")
+if (t_test_result$p.value < 0.05) {
+  cat("There is a significant difference between the two groups (p < 0.05)\n")
+} else {
+  cat("There is no significant difference between the two groups (p >= 0.05)\n")
+}
+```
+
+## 2. Paired Samples t-Test
+
+The paired samples t-test compares the means of two related groups (e.g., before and after measurements).
+
+**Assumptions:**
+- Paired observations
+- Normal distribution of differences
+- Independence of pairs
+
+**Example:**
+```{r paired-t-test}
+# Generate sample data: weight before and after a diet program
+set.seed(456)
+n <- 25
+weight_before <- rnorm(n, mean = 80, sd = 12)
+weight_after <- weight_before - rnorm(n, mean = 3, sd = 2)  # Average loss of 3 kg
+
+# Create data frame
+weight_data <- data.frame(
+  participant = 1:n,
+  before = weight_before,
+  after = weight_after
+)
+
+# Visualize the data
+weight_long <- weight_data %>%
+  pivot_longer(cols = c(before, after), names_to = "time", values_to = "weight")
+
+ggplot(weight_long, aes(x = time, y = weight, group = participant)) +
+  geom_line(color = "gray") +
+  geom_point(aes(color = time), size = 3) +
+  theme_minimal() +
+  labs(title = "Weight Before and After Diet Program",
+       x = "Time", y = "Weight (kg)")
+
+# Perform paired samples t-test
+paired_t_result <- t.test(weight_data$before, weight_data$after, paired = TRUE)
+print(paired_t_result)
+
+# Interpretation
+cat("\nInterpretation:\n")
+cat("Mean difference:", round(paired_t_result$estimate, 2), "kg\n")
+cat("The p-value is:", format(paired_t_result$p.value, scientific = FALSE), "\n")
+if (paired_t_result$p.value < 0.05) {
+  cat("There is a significant difference between before and after (p < 0.05)\n")
+} else {
+  cat("There is no significant difference between before and after (p >= 0.05)\n")
+}
+```
+
+## 3. One-Sample t-Test
+
+The one-sample t-test compares the mean of a sample to a known or hypothesized population mean.
+
+**Assumptions:**
+- Independence of observations
+- Normal distribution
+- Random sampling
+
+**Example:**
+```{r one-sample-t-test}
+# Generate sample data: IQ scores (population mean is 100)
+set.seed(789)
+sample_iq <- rnorm(40, mean = 105, sd = 15)
+
+# Visualize the data
+ggplot(data.frame(iq = sample_iq), aes(x = iq)) +
+  geom_histogram(bins = 15, fill = "steelblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = 100, color = "red", linetype = "dashed", size = 1) +
+  annotate("text", x = 100, y = 6, label = "Population Mean = 100", 
+           color = "red", hjust = -0.1) +
+  theme_minimal() +
+  labs(title = "Sample IQ Scores Distribution",
+       x = "IQ Score", y = "Frequency")
+
+# Perform one-sample t-test (testing against population mean of 100)
+one_sample_result <- t.test(sample_iq, mu = 100)
+print(one_sample_result)
+
+# Interpretation
+cat("\nInterpretation:\n")
+cat("Sample mean:", round(mean(sample_iq), 2), "\n")
+cat("Hypothesized population mean:", 100, "\n")
+cat("The p-value is:", format(one_sample_result$p.value, scientific = FALSE), "\n")
+if (one_sample_result$p.value < 0.05) {
+  cat("The sample mean is significantly different from 100 (p < 0.05)\n")
+} else {
+  cat("The sample mean is not significantly different from 100 (p >= 0.05)\n")
+}
+```
+
+## 4. Mann-Whitney U Test (Wilcoxon Rank-Sum Test)
+
+The Mann-Whitney U test is a non-parametric alternative to the independent samples t-test. It compares the distributions of two independent groups without assuming normality.
+
+**When to use:**
+- Data is not normally distributed
+- Ordinal data
+- Small sample sizes
+
+**Example:**
+```{r mann-whitney-test}
+# Generate skewed sample data: reaction times in two groups
+set.seed(321)
+group_a <- rexp(25, rate = 0.5)  # Exponentially distributed
+group_b <- rexp(25, rate = 0.7)
+
+reaction_data <- data.frame(
+  time = c(group_a, group_b),
+  group = factor(rep(c("Group A", "Group B"), each = 25))
+)
+
+# Visualize the data
+ggplot(reaction_data, aes(x = group, y = time, fill = group)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Reaction Time Distribution by Group",
+       x = "Group", y = "Reaction Time (seconds)")
+
+# Perform Mann-Whitney U test
+mann_whitney_result <- wilcox.test(time ~ group, data = reaction_data)
+print(mann_whitney_result)
+
+# Interpretation
+cat("\nInterpretation:\n")
+cat("Median Group A:", round(median(group_a), 2), "\n")
+cat("Median Group B:", round(median(group_b), 2), "\n")
+cat("The p-value is:", format(mann_whitney_result$p.value, scientific = FALSE), "\n")
+if (mann_whitney_result$p.value < 0.05) {
+  cat("There is a significant difference between the two groups (p < 0.05)\n")
+} else {
+  cat("There is no significant difference between the two groups (p >= 0.05)\n")
+}
+```
+
+## 5. Wilcoxon Signed-Rank Test
+
+The Wilcoxon signed-rank test is a non-parametric alternative to the paired samples t-test. It compares two related samples without assuming normality.
+
+**When to use:**
+- Paired data is not normally distributed
+- Ordinal paired data
+- Small sample sizes
+
+**Example:**
+```{r wilcoxon-signed-rank-test}
+# Generate paired sample data: pain scores before and after treatment
+set.seed(654)
+n <- 20
+pain_before <- sample(5:10, n, replace = TRUE)  # Pain scale 1-10
+pain_after <- pmax(1, pain_before - sample(0:4, n, replace = TRUE))  # Reduction
+
+pain_paired_data <- data.frame(
+  patient = 1:n,
+  before = pain_before,
+  after = pain_after
+)
+
+# Visualize the data
+pain_long <- pain_paired_data %>%
+  pivot_longer(cols = c(before, after), names_to = "time", values_to = "pain_score")
+
+ggplot(pain_long, aes(x = time, y = pain_score, group = patient)) +
+  geom_line(color = "gray") +
+  geom_point(aes(color = time), size = 3) +
+  theme_minimal() +
+  labs(title = "Pain Scores Before and After Treatment",
+       x = "Time", y = "Pain Score (1-10)")
+
+# Perform Wilcoxon signed-rank test
+wilcoxon_result <- wilcox.test(pain_paired_data$before, 
+                                pain_paired_data$after, 
+                                paired = TRUE)
+print(wilcoxon_result)
+
+# Interpretation
+cat("\nInterpretation:\n")
+cat("Median pain before:", median(pain_before), "\n")
+cat("Median pain after:", median(pain_after), "\n")
+cat("The p-value is:", format(wilcoxon_result$p.value, scientific = FALSE), "\n")
+if (wilcoxon_result$p.value < 0.05) {
+  cat("There is a significant difference between before and after treatment (p < 0.05)\n")
+} else {
+  cat("There is no significant difference between before and after treatment (p >= 0.05)\n")
+}
+```
+
+## Summary
+
+This document covered five essential statistical tests for continuous outcomes:
+
+1. **Independent Samples t-Test**: Compares means of two independent groups (parametric)
+2. **Paired Samples t-Test**: Compares means of two related groups (parametric)
+3. **One-Sample t-Test**: Compares sample mean to a known population mean (parametric)
+4. **Mann-Whitney U Test**: Non-parametric alternative to independent samples t-test
+5. **Wilcoxon Signed-Rank Test**: Non-parametric alternative to paired samples t-test
+
+### Key Takeaways:
+
+- Use parametric tests (t-tests) when data is normally distributed
+- Use non-parametric tests when data is skewed or ordinal
+- Always visualize your data before choosing a test
+- Check assumptions before applying parametric tests
+- Interpret results in context with effect sizes and practical significance
