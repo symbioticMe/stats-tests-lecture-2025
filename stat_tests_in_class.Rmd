@@ -1,0 +1,244 @@
+---
+title: "Stats 101: Illustrating Key Statistical Tests using the Pima Diabetes Dataset"
+author: "Елена Чуклина"
+date: "`r format(Sys.Date())`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: cosmo
+---
+
+I've selected the **Pima Indians Diabetes Dataset** (a classic in biomedical and machine learning fields) to illustrate these statistical tests. It's a clean, public-domain dataset that offers continuous and binary variables, making it ideal for the required demonstrations.
+
+The dataset contains diagnostic measurements from female Pima Indian patients, 21 years or older, living near Phoenix, Arizona, and includes variables like glucose, blood pressure, BMI, and a diabetes outcome.
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+# Install and load necessary packages
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(datarium)) install.packages("datarium") 
+if(!require(rstatix)) install.packages("rstatix") # For Wilcoxon and Mann-Whitney
+library(tidyverse)
+library(rstatix) 
+
+# Note: We'll create a synthetic version of the Pima dataset 
+# to better illustrate the Paired and ANOVA tests which require specific data structures.
+```
+
+## **1. Load and Prepare the Dataset**
+
+We will use the **PimaIndiansDiabetes2** dataset from the `mlbench` package (a clean version of the original UCI dataset).
+
+```{r load_data}
+# Install and load mlbench to get the Pima dataset
+if(!require(mlbench)) install.packages("mlbench")
+library(mlbench)
+data("PimaIndiansDiabetes2")
+df <- PimaIndiansDiabetes2 %>%
+  # Remove NAs for simplicity in this example
+  drop_na() %>%
+  # Select key variables and rename for clarity
+  select(glucose, pressure, pregnant, age, diabetes) %>%
+  rename(Outcome = diabetes)
+
+# Inspect the cleaned data structure
+print(head(df))
+print(skimr::skim(df))
+```
+
+-----
+
+## **2. t-Tests (for Means Comparison)**
+
+### **2.1. Independent Samples t-Test**
+
+  * **Goal:** Compare the mean **Glucose** level between patients who tested **Diabetic (pos)** and those who tested **Non-Diabetic (neg)**.
+  * **Groups:** Two independent groups (Diabetic vs. Non-Diabetic).
+  * **Null Hypothesis ($H_0$):** The mean glucose level is the same for both groups.
+
+<!-- end list -->
+
+```{r independent_ttest}
+# Perform the Independent Samples t-test
+t_test_ind <- t.test(glucose ~ Outcome, data = df, var.equal = TRUE) # Assuming equal variance for this example
+
+# Print results
+cat("### Independent Samples t-Test: Glucose by Diabetes Outcome\n")
+print(t_test_ind)
+
+# Visualization
+df %>%
+  ggplot(aes(x = Outcome, y = glucose, fill = Outcome)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, alpha = 0.5) +
+  labs(title = "Glucose Levels by Diabetes Outcome",
+       y = "Plasma Glucose Concentration",
+       x = "Diabetes Status") +
+  theme_minimal()
+```
+
+### **2.2. Paired Samples t-Test**
+
+  * **Goal:** To illustrate this, we'll create a **synthetic pre- and post-intervention blood pressure** variable based on the existing `pressure`. We'll simulate a 6-month trial where an experimental diet is hypothesized to lower blood pressure.
+  * **Setup:** A single group measured at two time points (paired data).
+  * **Null Hypothesis ($H_0$):** The mean difference in pressure (Post - Pre) is zero.
+
+<!-- end list -->
+
+```{r paired_ttest}
+# Create a synthetic paired dataset
+df_paired <- df %>%
+  mutate(
+    # 'Pre' is the original blood pressure (baseline)
+    pressure_pre = pressure,
+    # 'Post' is simulated as 'Pre' - a small, random reduction (due to the "diet")
+    pressure_post = pressure_pre - runif(n(), 0, 5) # Simulating a small, random drop
+  ) %>%
+  select(pressure_pre, pressure_post)
+
+# Perform the Paired Samples t-test
+t_test_paired <- t.test(df_paired$pressure_post, df_paired$pressure_pre, paired = TRUE, alternative = "less")
+
+cat("\n### Paired Samples t-Test: Synthetic Blood Pressure (Post vs. Pre-Diet)\n")
+print(t_test_paired)
+```
+
+### **2.3. One-Sample t-Test**
+
+  * **Goal:** Test if the **mean number of pregnancies** in this Pima Indian cohort is significantly different from a hypothesized **national average of 3** ($\mu_0 = 3$).
+  * **Setup:** One sample against a known/hypothesized value.
+  * **Null Hypothesis ($H_0$):** The mean number of pregnancies in the sample is 3.
+
+<!-- end list -->
+
+```{r one_sample_ttest}
+# Perform the One-Sample t-test against mu = 3
+t_test_one <- t.test(df$pregnant, mu = 3)
+
+cat("\n### One-Sample t-Test: Pregnancies vs. National Average (mu = 3)\n")
+print(t_test_one)
+```
+
+-----
+
+## **3. Analysis of Variance (ANOVA)**
+
+### **3.1. One-Way ANOVA**
+
+  * **Goal:** Compare the mean **Glucose** level across different **Age Groups**.
+  * **Setup:** Three or more independent groups (requires grouping a continuous variable).
+  * **Null Hypothesis ($H_0$):** The mean glucose is the same across all age groups.
+
+<!-- end list -->
+
+```{r anova}
+# 1. Create age groups (a factor with 3+ levels)
+df_anova <- df %>%
+  mutate(
+    age_group = case_when(
+      age < 30 ~ "Young Adult",
+      age >= 30 & age < 45 ~ "Middle Adult",
+      TRUE ~ "Older Adult"
+    ) %>%
+    as.factor()
+  )
+
+# 2. Check group counts to ensure adequate size
+print(table(df_anova$age_group))
+
+# 3. Perform One-Way ANOVA
+anova_model <- aov(glucose ~ age_group, data = df_anova)
+
+cat("\n### One-Way ANOVA: Glucose by Age Group\n")
+print(summary(anova_model))
+
+# Visualization
+df_anova %>%
+  ggplot(aes(x = age_group, y = glucose, fill = age_group)) +
+  geom_boxplot() +
+  labs(title = "Glucose Levels by Age Group",
+       y = "Plasma Glucose Concentration",
+       x = "Age Group") +
+  theme_minimal()
+```
+
+-----
+
+## **4. Non-Parametric Tests (Rank-Based)**
+
+We often use non-parametric tests when the assumption of **normality is violated** or the data is **ordinal/ranked**.
+
+### **4.1. Mann-Whitney U Test (Wilcoxon Rank Sum)**
+
+  * **Non-parametric equivalent of:** Independent Samples t-Test.
+  * **Goal:** Compare the **distributions (medians)** of **Body Mass Index (BMI)** between Diabetic and Non-Diabetic patients.
+  * **Setup:** Two independent groups.
+
+
+```{r mann-whitney}
+# Assuming BMI is not normally distributed (we would typically test this)
+test_mw <- wilcox.test(bmi ~ Outcome, data = df, exact = FALSE)
+
+cat("\n### Mann-Whitney U Test: BMI by Diabetes Outcome\n")
+print(test_mw)
+```
+
+### **4.2. Wilcoxon Signed-Rank Test**
+
+  * **Non-parametric equivalent of:** Paired Samples t-Test.
+  * **Goal:** Compare the **distributions (medians)** of the **synthetic paired blood pressure data** created earlier.
+  * **Setup:** Two related (paired) samples.
+
+
+```{r wilcoxon_signed_rank}
+# The 'df_paired' data has 'pressure_pre' and 'pressure_post'
+test_wsr <- wilcox.test(df_paired$pressure_post, df_paired$pressure_pre, paired = TRUE, alternative = "less")
+
+cat("\n### Wilcoxon Signed-Rank Test: Synthetic Paired Blood Pressure (Post vs. Pre-Diet)\n")
+print(test_wsr)
+```
+
+```{r}
+# Perform the Independent Samples t-test
+t_test_ind <- t.test(glucose ~ Outcome, data = df, var.equal = TRUE) # Assuming equal variance for this example
+
+# Print results
+cat("### Independent Samples t-Test: Glucose by Diabetes Outcome\n")
+print(t_test_ind)
+
+# Visualization
+df %>%
+  ggplot(aes(x = Outcome, y = glucose, fill = Outcome)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, alpha = 0.5) +
+  labs(title = "Glucose Levels by Diabetes Outcome",
+       y = "Plasma Glucose Concentration",
+       x = "Diabetes Status") +
+  theme_minimal()
+```
+
+
+```{r}
+# Create a synthetic paired dataset
+df_paired <- df %>%
+  mutate(
+    # 'Pre' is the original blood pressure (baseline)
+    pressure_pre = pressure,
+    # 'Post' is simulated as 'Pre' - a small, random reduction (due to the "diet")
+    pressure_post = pressure_pre - runif(n(), 0, 5) # Simulating a small, random drop
+  ) %>%
+  select(pressure_pre, pressure_post)
+
+# Perform the Paired Samples t-test
+t_test_paired <- t.test(df_paired$pressure_post, df_paired$pressure_pre, paired = TRUE, alternative = "less")
+
+cat("\n### Paired Samples t-Test: Synthetic Blood Pressure (Post vs. Pre-Diet)\n")
+print(t_test_paired)
+```
+
+
