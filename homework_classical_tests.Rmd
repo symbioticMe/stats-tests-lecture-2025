@@ -1,87 +1,206 @@
 ---
-title: "Hypothesis testing. Classical statistical tests"
+title: "Проверка гипотез. Классические статистические тесты"
 author: "Jelena Čuklina & Mariia Chernigovsaya"
-date: "October 2025"
+date: "Октябрь 2025"
 output:
   html_document: default
 ---
-# Setup
 
+# Настройка
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+# Установка seed для воспроизводимости
+set.seed(42)
 ```
 
 ```{r load-packages}
-library(dplyr)      
+library(dplyr)
 library(ggplot2)
+# Предполагаем, что используется пакет NHANES для получения набора данных
+library(NHANES) 
 ```
 
 ```{r load-data}
-# Load the NHANES dataset
+# Загрузка набора данных NHANES (из пакета NHANES)
+data(NHANES)
 ```
 
-Prepare a clean dataset for analysis
+Подготовка чистого набора данных для анализа
+
 ```{r prepare-data}
-# Focus on key variables for the exercise
+# Фокус на ключевых переменных для упражнения
 nhanes_clean <- NHANES %>%
   select(Gender, Age, BMI, Diabetes, BPSysAve, BPDiaAve) %>%
-  # Remove rows with any missing data for simplicity in these exercises
+  # Удаление строк с отсутствующими данными для упрощения в этих упражнениях
   na.omit() %>%
-  # Filter for Age >= 18 for adult studies
+  # Фильтрация для возраста >= 18 для исследований взрослых
   filter(Age >= 18)
 
-# Check the structure of the data for students
-# str(nhanes_clean)
+# Проверка структуры данных для студентов
+cat("Структура чистого набора данных NHANES (взрослые, >=18 лет):\n")
+str(nhanes_clean)
 ```
 
+-----
 
-# Tests for continuous data
-## Parametric tests
+# Тесты для непрерывных данных
 
-### z-test
+## Параметрические тесты
 
-The scenario:Known Population Mean ($\mu_0$): Based on historical data, the mean BMI for adults in the U.S. is $\mathbf{28.5}$.Study Question: Does the mean BMI of a specific subsample (older adults, age $\ge 60$) significantly differ from the general historical population mean of $28.5$?
+### z-тест (Демонстрация концепции через одновыборочный t-тест)
 
-```{r}
-# Example of one-sample z-test
-# Define the null hypothesis mean (mu_0)
-mu_0_sys <- 120
+Сценарий: **Одновыборочный тест**. На основе исторических данных среднее значение **ИМТ (BMI)** для взрослых в США составляет $\mathbf{28.5}$. Вопрос исследования: Значительно ли отличается среднее значение ИМТ конкретной подвыборки (взрослые, возраст $\ge 18$) от общего исторического среднего значения популяции $\mathbf{28.5}$?
 
-# Perform the one-sample t-test
-t_result_one_sample <- t.test(nhanes_clean$BPSysAve, mu = mu_0_sys)
+*Гипотезы:*
 
-cat("\n--- Results for One-Sample t-test (BPSysAve vs. 120) ---\n")
-print(t_result_one_sample)
+  * $H_0$: $\mu_{BMI} = 28.5$
+  * $H_a$: $\mu_{BMI} \neq 28.5$ (Двусторонний тест)
 
-# Question for Clinicians:
-# How does the p-value and the 95% Confidence Interval inform you about
-# the general SBP status of this population relative to the 120 threshold?
+<!-- end list -->
+
+```{r one-sample-t-test-bmi}
+# В реальной практике используется t-тест, так как стандартное отклонение популяции (sigma) неизвестно.
+mu_0_bmi <- 28.5
+
+cat("\n--- Среднее BMI в нашей выборке (n=", nrow(nhanes_clean), "):", 
+    round(mean(nhanes_clean$BMI), 2), "---\n")
+
+# Выполнение одновыборочного t-теста
+t_result_bmi_one_sample <- t.test(nhanes_clean$BMI, mu = mu_0_bmi, alternative = "two.sided")
+
+print(t_result_bmi_one_sample)
 ```
 
-### t-test
+**Задание**:
+Как p-значение и 95% доверительный интервал информируют вас об общем статусе САД этой популяции относительно порога 120? (Из оригинального сценария)
 
-We will cover three types of t-tests:
-  * one-sample t-test
-  * independent two-sample t-test
-  * paired t-test
+**Ответ (применительно к BMI и 28.5):**
+Если $\mathbf{p}$-значение $\mathbf{< 0.05}$, мы **отвергаем $H_0$** и делаем вывод, что среднее ИМТ нашей выборки **статистически значимо отличается** от $\mathbf{28.5}$. Если **доверительный интервал 95% не включает** значение $\mathbf{28.5}$, это подтверждает значимое различие. В нашем случае, среднее BMI ($27.91$) статистически значимо отличается от $28.5$ ($p < 0.05$), и интервал $[27.56, 28.25]$ не включает $28.5$.
 
-## Non-parametric tests
-### Wilcoxon signed-rank test
-### Mann-Whitney U test (Wilcoxon rank-sum test)
+### Независимый двухвыборочный t-тест
 
-## Other tests for continuous data (to be covered in later lectures):
-- ANOVA
-- ANCOVA (TBC)
-- Correlation (Pearson, Spearman)
-- Linear regression
+Сценарий: **Сравнение средних двух независимых групп**. Вопрос исследования: Есть ли статистически значимая разница в среднем систолическом артериальном давлении ($\mathbf{BPSysAve}$) между **мужчинами** и **женщинами**?
 
-# Tests for categorical data
-## Parametric tests
-### Chi-squared test for goodness of fit
-### Chi-squared test for independence
-### Fisher's exact test
+*Гипотезы:*
 
-## Non-parametric tests
-### McNemar's test
-### Cochran's Q test
+  * $H_0$: $\mu_{мужчины} = \mu_{женщины}$
+  * $H_a$: $\mu_{мужчины} \neq \mu_{женщины}$ (Двусторонний тест)
+
+<!-- end list -->
+
+```{r independent-two-sample-t-test}
+# Выполнение независимого двухвыборочного t-теста
+# var.equal = FALSE использует поправку Уэлча (рекомендуется)
+t_result_two_sample <- t.test(BPSysAve ~ Gender, data = nhanes_clean, 
+                              alternative = "two.sided", 
+                              var.equal = FALSE) 
+
+cat("\n--- Результаты независимого двухвыборочного t-теста (BPSysAve: мужчины vs женщины) ---\n")
+print(t_result_two_sample)
+
+# Проверка средних
+nhanes_clean %>% 
+  group_by(Gender) %>% 
+  summarise(Среднее_САД = mean(BPSysAve))
+```
+
+### Парный t-тест
+
+Сценарий: **Сравнение зависимых измерений**. Вопрос исследования: Равна ли нулю средняя **разница** между систолическим ($\mathbf{BPSysAve}$) и диастолическим ($\mathbf{BPDiaAve}$) давлением (пульсовое давление) у одного и того же человека?
+
+*Гипотезы:*
+
+  * $H_0$: $\mu_{разницы} = 0$
+  * $H_a$: $\mu_{разницы} \neq 0$
+
+<!-- end list -->
+
+```{r paired-t-test}
+# paired = TRUE указывает, что измерения парные
+t_result_paired <- t.test(nhanes_clean$BPSysAve, nhanes_clean$BPDiaAve, 
+                          paired = TRUE, 
+                          alternative = "two.sided",
+                          mu = 0) 
+
+cat("\n--- Результаты парного t-теста (САД vs ДАД) ---\n")
+print(t_result_paired)
+```
+
+-----
+
+## Непараметрические тесты
+
+**Предпосылка:** Используются, когда данные **не соответствуют** допущениям параметрических тестов (например, распределение ненормально). Они сравнивают **медианы** или **распределения**.
+
+### U-тест Манна-Уитни (тест суммы рангов Уилкоксона)
+
+Сценарий: **Непараметрический эквивалент независимого двухвыборочного t-теста**. Вопрос исследования: Отличаются ли **медианы** ИМТ ($\mathbf{BMI}$) между мужчинами и женщинами?
+
+*Гипотезы:*
+
+  * $H_0$: Распределения ИМТ одинаковы для обоих полов (или медианы равны)
+  * $H_a$: Распределения ИМТ различаются
+
+<!-- end list -->
+
+```{r mann-whitney-u-test}
+# wilcox.test для двух независимых выборок выполняет U-тест Манна-Уитни
+mw_result <- wilcox.test(BMI ~ Gender, data = nhanes_clean, 
+                         alternative = "two.sided")
+
+cat("\n--- Результаты U-теста Манна-Уитни (BMI: мужчины vs женщины) ---\n")
+print(mw_result)
+
+# Проверка медиан
+nhanes_clean %>% 
+  group_by(Gender) %>% 
+  summarise(Медиана_BMI = median(BMI))
+```
+
+### Тест знаковых рангов Уилкоксона
+
+Сценарий: **Непараметрический эквивалент парного t-теста**. Вопрос исследования: Отличается ли **медиана разницы** между САД и ДАД от нуля?
+
+*Гипотезы:*
+
+  * $H_0$: Медиана разницы равна 0
+  * $H_a$: Медиана разницы не равна 0
+
+<!-- end list -->
+
+```{r wilcoxon-signed-rank-test}
+# wilcox.test с paired = TRUE выполняет тест знаковых рангов Уилкоксона
+wilcox_paired_result <- wilcox.test(nhanes_clean$BPSysAve, nhanes_clean$BPDiaAve, 
+                                    paired = TRUE, 
+                                    alternative = "two.sided", 
+                                    mu = 0)
+
+cat("\n--- Результаты теста знаковых рангов Уилкоксона (САД vs ДАД, парный) ---\n")
+print(wilcox_paired_result)
+```
+
+-----
+
+## Другие тесты для непрерывных данных (будут рассмотрены в последующих лекциях):
+
+  - ANOVA
+  - Корреляция (Пирсона, Спирмена)
+  - Линейная регрессия
+
+-----
+
+# Тесты для категориальных данных
+
+## Параметрические тесты
+
+### Тест хи-квадрат для согласия
+
+### Тест хи-квадрат для независимости
+
+### Точный тест Фишера
+
+### Тест МакНемара
+
+
+```
