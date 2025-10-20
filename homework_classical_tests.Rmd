@@ -1,6 +1,6 @@
 ---
 title: "Проверка гипотез. Классические статистические тесты"
-author: "Jelena Čuklina & Mariia Chernigovsaya"
+author: "Jelena Čuklina & Maria Chernigovskaya"
 date: "Октябрь 2025"
 output:
   html_document: default
@@ -22,6 +22,8 @@ library(NHANES)
 ```
 
 В этом упражнении мы будем использовать набор данных NHANES (Национальное обследование здоровья и питания), который доступен через пакет NHANES. Эти данные содержат информацию о здоровье и питании населения США и широко используются для статистического анализа в области здравоохранения.
+
+Подробное описание данных можно найти тут: https://cran.r-project.org/web/packages/NHANES/NHANES.pdf
 
 ```{r load-data}
 # Загрузка набора данных NHANES (из пакета NHANES)
