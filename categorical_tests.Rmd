@@ -1,0 +1,323 @@
+---
+title: "Statistical Tests for Categorical Outcomes"
+author: "Stats Tests Lecture 2025"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(knitr)
+```
+
+# Statistical Tests for Categorical Outcomes
+
+This document covers statistical tests for categorical outcomes, focusing on tests of association and independence between categorical variables.
+
+## 1. Chi-Square Test of Independence
+
+The Chi-Square test of independence examines whether two categorical variables are associated or independent.
+
+**Assumptions:**
+- Independence of observations
+- Expected frequency count ≥ 5 in at least 80% of cells
+- Expected frequency count > 1 in all cells
+- Random sampling
+
+**Example:**
+```{r chi-square-test}
+# Generate sample data: relationship between smoking status and lung disease
+set.seed(111)
+n <- 200
+
+# Create a contingency table
+smoking <- sample(c("Smoker", "Non-smoker"), n, replace = TRUE, prob = c(0.3, 0.7))
+lung_disease <- character(n)
+
+# Simulate association between smoking and lung disease
+for (i in 1:n) {
+  if (smoking[i] == "Smoker") {
+    lung_disease[i] <- sample(c("Disease", "No Disease"), 1, prob = c(0.4, 0.6))
+  } else {
+    lung_disease[i] <- sample(c("Disease", "No Disease"), 1, prob = c(0.15, 0.85))
+  }
+}
+
+# Create data frame
+disease_data <- data.frame(
+  smoking = factor(smoking),
+  lung_disease = factor(lung_disease)
+)
+
+# Create contingency table
+cont_table <- table(disease_data$smoking, disease_data$lung_disease)
+print("Contingency Table:")
+print(cont_table)
+
+# Add margins for better visualization
+print("\nContingency Table with Margins:")
+addmargins(cont_table) %>% kable()
+
+# Visualize the data
+disease_summary <- disease_data %>%
+  group_by(smoking, lung_disease) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(smoking) %>%
+  mutate(proportion = count / sum(count))
+
+ggplot(disease_summary, aes(x = smoking, y = count, fill = lung_disease)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Lung Disease by Smoking Status",
+       x = "Smoking Status", y = "Count",
+       fill = "Lung Disease")
+
+# Perform Chi-Square test
+chi_square_result <- chisq.test(cont_table)
+print("\nChi-Square Test Results:")
+print(chi_square_result)
+
+# Display expected frequencies
+print("\nExpected Frequencies:")
+print(chi_square_result$expected)
+
+# Calculate effect size (Cramér's V)
+n_total <- sum(cont_table)
+chi_sq_stat <- chi_square_result$statistic
+min_dim <- min(nrow(cont_table), ncol(cont_table)) - 1
+cramers_v <- sqrt(chi_sq_stat / (n_total * min_dim))
+
+# Interpretation
+cat("\n=== INTERPRETATION ===\n")
+cat("Chi-square statistic:", round(chi_square_result$statistic, 3), "\n")
+cat("Degrees of freedom:", chi_square_result$parameter, "\n")
+cat("P-value:", format(chi_square_result$p.value, scientific = FALSE), "\n")
+cat("Cramér's V (effect size):", round(cramers_v, 3), "\n")
+
+if (chi_square_result$p.value < 0.05) {
+  cat("\nConclusion: There is a significant association between smoking status and lung disease (p < 0.05)\n")
+} else {
+  cat("\nConclusion: There is no significant association between smoking status and lung disease (p >= 0.05)\n")
+}
+
+# Effect size interpretation
+cat("\nEffect Size Interpretation (Cramér's V):\n")
+if (cramers_v < 0.1) {
+  cat("- Small effect\n")
+} else if (cramers_v < 0.3) {
+  cat("- Medium effect\n")
+} else {
+  cat("- Large effect\n")
+}
+```
+
+## 2. Fisher's Exact Test
+
+Fisher's Exact Test is used when sample sizes are small and Chi-Square test assumptions are violated. It calculates the exact probability of observing the data.
+
+**When to use:**
+- Small sample sizes
+- Expected cell frequencies < 5
+- 2x2 contingency tables (can be extended to larger tables)
+
+**Example 1: Small Sample Size**
+```{r fisher-exact-test-small}
+# Generate small sample data: treatment effect in a clinical trial
+set.seed(222)
+
+# Create a small 2x2 contingency table
+treatment_table <- matrix(c(8, 2,   # Treatment group: 8 improved, 2 not improved
+                           3, 7),  # Control group: 3 improved, 7 not improved
+                         nrow = 2,
+                         dimnames = list(Group = c("Treatment", "Control"),
+                                       Outcome = c("Improved", "Not Improved")))
+
+print("Contingency Table (Small Sample):")
+print(treatment_table)
+addmargins(treatment_table) %>% kable()
+
+# Visualize the data
+treatment_df <- as.data.frame(as.table(treatment_table))
+names(treatment_df) <- c("Group", "Outcome", "Count")
+
+ggplot(treatment_df, aes(x = Group, y = Count, fill = Outcome)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Treatment Outcomes (Small Sample)",
+       x = "Group", y = "Count")
+
+# Perform Fisher's Exact Test
+fisher_result <- fisher.test(treatment_table)
+print("\nFisher's Exact Test Results:")
+print(fisher_result)
+
+# Interpretation
+cat("\n=== INTERPRETATION ===\n")
+cat("P-value:", format(fisher_result$p.value, scientific = FALSE), "\n")
+cat("Odds Ratio:", round(fisher_result$estimate, 3), "\n")
+cat("95% Confidence Interval:", round(fisher_result$conf.int[1], 3), 
+    "to", round(fisher_result$conf.int[2], 3), "\n")
+
+if (fisher_result$p.value < 0.05) {
+  cat("\nConclusion: There is a significant association between treatment and outcome (p < 0.05)\n")
+} else {
+  cat("\nConclusion: There is no significant association between treatment and outcome (p >= 0.05)\n")
+}
+
+# Odds ratio interpretation
+if (fisher_result$estimate > 1) {
+  cat("\nThe odds of improvement are", round(fisher_result$estimate, 2), 
+      "times higher in the treatment group compared to control.\n")
+} else {
+  cat("\nThe odds of improvement are lower in the treatment group compared to control.\n")
+}
+```
+
+**Example 2: Rare Event**
+```{r fisher-exact-test-rare}
+# Generate data for a rare adverse event study
+set.seed(333)
+
+# Create a 2x2 contingency table for rare event
+adverse_event_table <- matrix(c(1, 49,   # New drug: 1 adverse event, 49 no event
+                               5, 45),  # Standard drug: 5 adverse events, 45 no event
+                             nrow = 2,
+                             dimnames = list(Drug = c("New", "Standard"),
+                                           Event = c("Adverse Event", "No Event")))
+
+print("Contingency Table (Rare Event):")
+print(adverse_event_table)
+addmargins(adverse_event_table) %>% kable()
+
+# Check Chi-Square assumptions
+chi_check <- chisq.test(adverse_event_table)
+print("\nExpected frequencies (Chi-Square assumptions check):")
+print(chi_check$expected)
+cat("\nNote: Expected frequencies < 5 detected, Fisher's Exact Test is appropriate.\n")
+
+# Perform Fisher's Exact Test
+fisher_rare_result <- fisher.test(adverse_event_table)
+print("\nFisher's Exact Test Results:")
+print(fisher_rare_result)
+
+# Visualize
+adverse_df <- as.data.frame(as.table(adverse_event_table))
+names(adverse_df) <- c("Drug", "Event", "Count")
+
+ggplot(adverse_df, aes(x = Drug, y = Count, fill = Event)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme_minimal() +
+  labs(title = "Adverse Events by Drug Type",
+       x = "Drug", y = "Count") +
+  geom_text(aes(label = Count), position = position_stack(vjust = 0.5))
+
+# Interpretation
+cat("\n=== INTERPRETATION ===\n")
+cat("P-value:", format(fisher_rare_result$p.value, scientific = FALSE), "\n")
+cat("Odds Ratio:", round(fisher_rare_result$estimate, 3), "\n")
+cat("95% Confidence Interval:", round(fisher_rare_result$conf.int[1], 3), 
+    "to", round(fisher_rare_result$conf.int[2], 3), "\n")
+
+if (fisher_rare_result$p.value < 0.05) {
+  cat("\nConclusion: There is a significant difference in adverse event rates between drugs (p < 0.05)\n")
+} else {
+  cat("\nConclusion: There is no significant difference in adverse event rates between drugs (p >= 0.05)\n")
+}
+```
+
+## Comparison: Chi-Square vs Fisher's Exact Test
+
+```{r comparison-table}
+comparison_df <- data.frame(
+  Aspect = c("Sample Size", "Expected Frequencies", 
+             "Computation", "Accuracy", "Use Case"),
+  `Chi-Square Test` = c("Large (n > 20-40)", 
+                        "≥5 in 80% of cells",
+                        "Asymptotic approximation",
+                        "Approximate p-value",
+                        "General contingency tables"),
+  `Fisher's Exact Test` = c("Any size, especially small",
+                            "No restrictions",
+                            "Exact calculation",
+                            "Exact p-value",
+                            "Small samples, rare events")
+)
+
+kable(comparison_df, col.names = c("Aspect", "Chi-Square Test", "Fisher's Exact Test"),
+      caption = "Comparison of Chi-Square and Fisher's Exact Tests")
+```
+
+## Decision Tree for Test Selection
+
+```{r decision-tree, echo=FALSE, fig.height=4}
+# Create a simple decision flowchart using text
+cat("
+╔═══════════════════════════════════════╗
+║   Testing Association Between Two     ║
+║      Categorical Variables            ║
+╚═══════════════════════════════════════╝
+                  │
+                  ▼
+        ┌─────────────────────┐
+        │  Check Sample Size  │
+        └─────────────────────┘
+                  │
+         ┌────────┴────────┐
+         ▼                 ▼
+    Large Sample      Small Sample
+    (n > 40)         (n ≤ 40)
+         │                 │
+         ▼                 ▼
+  ┌──────────────┐   ┌──────────────┐
+  │ Check Exp.   │   │   Fisher's   │
+  │ Frequencies  │   │  Exact Test  │
+  └──────────────┘   └──────────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+  All ≥ 5   Any < 5
+    │         │
+    ▼         ▼
+Chi-Square  Fisher's
+   Test    Exact Test
+")
+```
+
+## Summary
+
+This document covered two essential statistical tests for categorical outcomes:
+
+1. **Chi-Square Test of Independence**
+   - Tests association between two categorical variables
+   - Requires adequate sample size and expected frequencies
+   - Provides approximate p-values
+   - Appropriate for large samples
+
+2. **Fisher's Exact Test**
+   - Alternative when Chi-Square assumptions are violated
+   - Works with any sample size
+   - Provides exact p-values
+   - Especially useful for small samples and rare events
+
+### Key Takeaways:
+
+- Always check sample size and expected frequencies before choosing a test
+- Fisher's Exact Test is more conservative but provides exact p-values
+- Chi-Square Test is computationally simpler for large samples
+- Visualize your data with contingency tables and bar plots
+- Report effect sizes (e.g., Cramér's V, Odds Ratio) along with p-values
+- Consider the context and practical significance of your findings
+
+### When to Use Each Test:
+
+**Use Chi-Square Test when:**
+- Sample size is large (n > 40)
+- Expected frequency ≥ 5 in at least 80% of cells
+- All expected frequencies > 1
+
+**Use Fisher's Exact Test when:**
+- Sample size is small (n ≤ 40)
+- Any expected frequency < 5
+- Analyzing rare events
+- You need exact p-values
