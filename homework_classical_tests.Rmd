@@ -17,6 +17,7 @@ set.seed(42)
 ```{r load-packages}
 library(dplyr)
 library(ggplot2)
+library(epitools)
 # Предполагаем, что используется пакет NHANES для получения набора данных
 library(NHANES)
 ```
