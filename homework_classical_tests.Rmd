@@ -35,7 +35,7 @@ data(NHANES)
 ```{r prepare-data}
 # Фокус на ключевых переменных для упражнения
 nhanes_clean <- NHANES %>%
-  select(Gender, Age, BMI, Diabetes, BPSysAve, BPDiaAve) %>%
+  select(Gender, Age, BMI, Diabetes, BPSysAve, BPDiaAve, PhysActive, SleepTrouble, Height, Weight, Education, HHIncome) %>%
   # Удаление строк с отсутствующими данными для упрощения в этих упражнениях
   na.omit() %>%
   # Фильтрация для возраста >= 18 для исследований взрослых
